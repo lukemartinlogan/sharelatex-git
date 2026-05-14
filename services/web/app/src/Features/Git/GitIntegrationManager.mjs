@@ -88,6 +88,30 @@ function apiRequest(url, { method = 'GET', headers = {} } = {}, body) {
   })
 }
 
+function throwRepoError(service, status, body) {
+  // Detect "repo already exists" across services and surface a clear message
+  if (service === 'github' && status === 422) {
+    const errors = body?.errors
+    if (errors?.some(e => e.message?.toLowerCase().includes('already exists'))) {
+      throw new Error('Repository already exists on GitHub')
+    }
+    throw new Error(body?.message || `HTTP ${status}`)
+  }
+  if (service === 'gitlab' && status === 400) {
+    const msg = body?.message
+    const fields = [...(msg?.name || []), ...(msg?.path || [])]
+    if (fields.some(e => e.includes('already been taken'))) {
+      throw new Error('Repository already exists on GitLab')
+    }
+    throw new Error(typeof msg === 'string' ? msg : JSON.stringify(msg) || `HTTP ${status}`)
+  }
+  if (status === 409) {
+    throw new Error('Repository already exists')
+  }
+  const msg = body?.message || body?.error?.message
+  throw new Error(msg || `HTTP ${status}`)
+}
+
 // Creates a remote repo on the configured service.
 // Returns { repoName, remoteUrl }
 export async function createRemoteRepo(integration, projectName) {
@@ -101,9 +125,7 @@ export async function createRemoteRepo(integration, projectName) {
       { method: 'POST', headers: { Authorization: `token ${token}` } },
       { name: repoName, private: true, auto_init: false }
     )
-    if (res.status !== 201) {
-      throw new Error(res.body?.message || `HTTP ${res.status}`)
-    }
+    if (res.status !== 201) throwRepoError(service, res.status, res.body)
     return { repoName, remoteUrl: `git@github.com:${username}/${repoName}.git` }
   }
 
@@ -114,12 +136,7 @@ export async function createRemoteRepo(integration, projectName) {
       { method: 'POST', headers: { 'PRIVATE-TOKEN': token } },
       { name: repoName, visibility: 'private' }
     )
-    if (res.status !== 201) {
-      const msg = res.body?.message
-        ? JSON.stringify(res.body.message)
-        : `HTTP ${res.status}`
-      throw new Error(msg)
-    }
+    if (res.status !== 201) throwRepoError(service, res.status, res.body)
     const host = new URL(base).hostname
     return { repoName, remoteUrl: `git@${host}:${username}/${repoName}.git` }
   }
@@ -132,9 +149,7 @@ export async function createRemoteRepo(integration, projectName) {
       { method: 'POST', headers: { Authorization: `token ${token}` } },
       { name: repoName, private: true, auto_init: false }
     )
-    if (res.status !== 201) {
-      throw new Error(res.body?.message || `HTTP ${res.status}`)
-    }
+    if (res.status !== 201) throwRepoError(service, res.status, res.body)
     const host = new URL(base).hostname
     return { repoName, remoteUrl: `git@${host}:${username}/${repoName}.git` }
   }
@@ -148,9 +163,7 @@ export async function createRemoteRepo(integration, projectName) {
       { method: 'POST', headers: { Authorization: `token ${token}` } },
       { name: repoName, private: true, auto_init: false }
     )
-    if (res.status !== 201) {
-      throw new Error(res.body?.message || `HTTP ${res.status}`)
-    }
+    if (res.status !== 201) throwRepoError(service, res.status, res.body)
     const host = new URL(base).hostname
     return { repoName, remoteUrl: `git@${host}:${username}/${repoName}.git` }
   }
@@ -163,9 +176,7 @@ export async function createRemoteRepo(integration, projectName) {
       { method: 'POST', headers: { Authorization: `Basic ${creds}` } },
       { scm: 'git', is_private: true }
     )
-    if (res.status !== 200 && res.status !== 201) {
-      throw new Error(res.body?.error?.message || `HTTP ${res.status}`)
-    }
+    if (res.status !== 200 && res.status !== 201) throwRepoError(service, res.status, res.body)
     return { repoName, remoteUrl: `git@bitbucket.org:${username}/${repoName}.git` }
   }
 

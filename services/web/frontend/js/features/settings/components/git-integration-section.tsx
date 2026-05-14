@@ -5,7 +5,7 @@ const SERVICES = [
   { value: 'github',    label: 'GitHub',    defaultApiUrl: 'https://api.github.com',      locked: true  },
   { value: 'gitlab',   label: 'GitLab',    defaultApiUrl: 'https://gitlab.com',           locked: true  },
   { value: 'bitbucket', label: 'Bitbucket', defaultApiUrl: 'https://api.bitbucket.org',  locked: true  },
-  { value: 'gitea',    label: 'Gitea',     defaultApiUrl: 'https://api.github.com',       locked: false },
+  { value: 'gitea',    label: 'Gitea',     defaultApiUrl: '',                             locked: false },
   { value: 'custom',   label: 'Custom',    defaultApiUrl: '',                             locked: false },
 ]
 

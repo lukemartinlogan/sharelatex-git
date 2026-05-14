@@ -36,7 +36,9 @@ echo "Stock image files extracted."
 echo "=== Overlaying custom git integration files ==="
 cp "$OVERLEAF/frontend/js/shared/utils/write-and-cite-settings-migration.ts" \
   "$BUILD/frontend/js/shared/utils/write-and-cite-settings-migration.ts"
-cp -r "$OVERLEAF/frontend/js/features/git/" "$BUILD/frontend/js/features/git/"
+# Remove and replace git features dir so stale files never persist across builds
+rm -rf "$BUILD/frontend/js/features/git"
+cp -r "$OVERLEAF/frontend/js/features/git" "$BUILD/frontend/js/features/git"
 cp "$OVERLEAF/frontend/js/features/settings/components/git-ssh-section.tsx" \
   "$BUILD/frontend/js/features/settings/components/git-ssh-section.tsx"
 cp "$OVERLEAF/frontend/js/features/settings/components/git-integration-section.tsx" \

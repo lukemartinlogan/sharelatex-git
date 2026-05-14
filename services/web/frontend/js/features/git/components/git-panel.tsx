@@ -91,11 +91,8 @@ export default function GitPanel() {
     ? (SERVICE_LABELS[integration.service] ?? integration.service)
     : null
 
-  const showMigrate =
-    integration?.configured &&
-    status !== null &&
-    !status.remoteUrl &&
-    migrateState !== 'done'
+  const alreadyLinked = status !== null && !!status.remoteUrl
+  const showMigrate = status !== null && !alreadyLinked && migrateState !== 'done'
 
   return (
     <div className="git-panel" style={{ padding: '12px 16px' }}>
@@ -122,23 +119,33 @@ export default function GitPanel() {
             border: '1px solid #c5d3f5',
           }}
         >
-          <p style={{ fontSize: 13, marginBottom: 8 }}>
-            You have a <strong>{serviceLabel}</strong> integration configured.
-            Link this project to create a remote repo automatically.
-          </p>
+          {integration?.configured ? (
+            <p style={{ fontSize: 13, marginBottom: 8 }}>
+              You have a <strong>{serviceLabel}</strong> integration configured.
+              Link this project to create a remote repo automatically.
+            </p>
+          ) : (
+            <p style={{ fontSize: 13, marginBottom: 8 }}>
+              Configure a git service integration in{' '}
+              <a href="/user/settings" target="_blank" rel="noreferrer">Account Settings</a>{' '}
+              to auto-create a remote repo, or set a remote URL manually below.
+            </p>
+          )}
           {migrateState === 'error' && (
             <p style={{ fontSize: 12, color: '#c0392b', marginBottom: 6 }}>
               {migrateError}
             </p>
           )}
-          <OLButton
-            variant="primary"
-            size="sm"
-            onClick={handleMigrate}
-            disabled={migrateState === 'migrating'}
-          >
-            {migrateState === 'migrating' ? 'Creating repo…' : `Link to ${serviceLabel}`}
-          </OLButton>
+          {integration?.configured && (
+            <OLButton
+              variant="primary"
+              size="sm"
+              onClick={handleMigrate}
+              disabled={migrateState === 'migrating'}
+            >
+              {migrateState === 'migrating' ? 'Creating repo…' : `Link to ${serviceLabel}`}
+            </OLButton>
+          )}
         </div>
       )}
 
@@ -153,7 +160,7 @@ export default function GitPanel() {
             fontSize: 13,
           }}
         >
-          ✓ Linked to <code>{migratedRemote}</code>
+          Linked to <code>{migratedRemote}</code>
         </div>
       )}
 
