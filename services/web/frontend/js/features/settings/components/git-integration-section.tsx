@@ -2,11 +2,11 @@ import { useCallback, useEffect, useState } from 'react'
 import { getJSON, postJSON, deleteJSON } from '@/infrastructure/fetch-json'
 
 const SERVICES = [
-  { value: 'github',    label: 'GitHub',    defaultApiUrl: 'https://api.github.com',      locked: true  },
-  { value: 'gitlab',   label: 'GitLab',    defaultApiUrl: 'https://gitlab.com',           locked: true  },
-  { value: 'bitbucket', label: 'Bitbucket', defaultApiUrl: 'https://api.bitbucket.org',  locked: true  },
-  { value: 'gitea',    label: 'Gitea',     defaultApiUrl: '',                             locked: false },
-  { value: 'custom',   label: 'Custom',    defaultApiUrl: '',                             locked: false },
+  { value: 'github',    label: 'GitHub',    defaultApiUrl: 'https://api.github.com',     locked: true,  hasCredentials: true  },
+  { value: 'gitlab',   label: 'GitLab',    defaultApiUrl: 'https://gitlab.com',          locked: true,  hasCredentials: true  },
+  { value: 'bitbucket', label: 'Bitbucket', defaultApiUrl: 'https://api.bitbucket.org', locked: true,  hasCredentials: true  },
+  { value: 'gitea',    label: 'Gitea',     defaultApiUrl: '',                            locked: false, hasCredentials: true  },
+  { value: 'custom',   label: 'Custom',    defaultApiUrl: '',                            locked: false, hasCredentials: false },
 ]
 
 type IntegrationStatus = {
@@ -14,6 +14,7 @@ type IntegrationStatus = {
   service?: string
   username?: string
   apiUrl?: string
+  org?: string
   hasToken?: boolean
 }
 
@@ -25,6 +26,7 @@ export default function GitIntegrationSection() {
   const [username, setUsername] = useState('')
   const [token, setToken] = useState('')
   const [apiUrl, setApiUrl] = useState('https://api.github.com')
+  const [org, setOrg] = useState('')
   const [saveState, setSaveState] = useState<SaveState>('idle')
   const [errorMsg, setErrorMsg] = useState('')
 
@@ -36,6 +38,7 @@ export default function GitIntegrationSection() {
           setService(s.service || 'github')
           setUsername(s.username || '')
           setApiUrl(s.apiUrl || '')
+          setOrg(s.org || '')
         }
       })
       .catch(() => setStatus({ configured: false }))
@@ -49,8 +52,13 @@ export default function GitIntegrationSection() {
     if (def) setApiUrl(def.defaultApiUrl)
   }, [])
 
+  const currentService = SERVICES.find(s => s.value === service)
+  const apiUrlLocked = currentService?.locked ?? false
+  const hasCredentials = currentService?.hasCredentials ?? true
+  const busy = saveState === 'saving' || saveState === 'deleting'
+
   const handleSave = useCallback(async () => {
-    if (!token && !status?.configured) {
+    if (hasCredentials && !token && !status?.configured) {
       setErrorMsg('Access token is required')
       return
     }
@@ -58,7 +66,7 @@ export default function GitIntegrationSection() {
     setErrorMsg('')
     try {
       await postJSON('/user/git/integration', {
-        body: { service, username, token, apiUrl },
+        body: { service, username, token, apiUrl, org },
       })
       setSaveState('saved')
       setToken('')
@@ -68,7 +76,7 @@ export default function GitIntegrationSection() {
       setSaveState('error')
       setErrorMsg(err?.data?.error || err?.message || 'Failed to save')
     }
-  }, [service, username, token, apiUrl, status, fetchStatus])
+  }, [service, username, token, apiUrl, org, status, hasCredentials, fetchStatus])
 
   const handleDelete = useCallback(async () => {
     setSaveState('deleting')
@@ -77,6 +85,7 @@ export default function GitIntegrationSection() {
       setSaveState('deleted')
       setUsername('')
       setToken('')
+      setOrg('')
       fetchStatus()
       setTimeout(() => setSaveState('idle'), 2000)
     } catch (err: any) {
@@ -85,10 +94,9 @@ export default function GitIntegrationSection() {
     }
   }, [fetchStatus])
 
-  const busy = saveState === 'saving' || saveState === 'deleting'
-  const currentService = SERVICES.find(s => s.value === service)
-  const apiUrlLocked = currentService?.locked ?? true
   const serviceLabel = SERVICES.find(s => s.value === status?.service)?.label ?? status?.service
+
+  const disabledStyle = { background: '#f5f5f5', cursor: 'not-allowed' }
 
   return (
     <div>
@@ -102,7 +110,8 @@ export default function GitIntegrationSection() {
       {status?.configured && (
         <div className="alert alert-info" style={{ padding: '6px 10px', marginBottom: 12, fontSize: 13 }}>
           Currently connected: <strong>{serviceLabel}</strong>{' '}
-          as <strong>{status.username}</strong>
+          {status.username && <>as <strong>{status.username}</strong></>}
+          {status.org && <> · org: <strong>{status.org}</strong></>}
         </div>
       )}
 
@@ -122,21 +131,24 @@ export default function GitIntegrationSection() {
       </div>
 
       <div className="form-group">
-        <label htmlFor="git-int-username">Username</label>
+        <label htmlFor="git-int-username" style={!hasCredentials ? { color: '#aaa' } : undefined}>
+          Username
+        </label>
         <input
           id="git-int-username"
           type="text"
           className="form-control"
           value={username}
           onChange={e => setUsername(e.target.value)}
-          placeholder="your-username"
-          disabled={busy}
+          placeholder={hasCredentials ? 'your-username' : 'not used for custom service'}
+          disabled={busy || !hasCredentials}
+          style={!hasCredentials ? disabledStyle : undefined}
         />
       </div>
 
       <div className="form-group">
-        <label htmlFor="git-int-token">
-          Access Token{status?.configured && ' (leave blank to keep existing)'}
+        <label htmlFor="git-int-token" style={!hasCredentials ? { color: '#aaa' } : undefined}>
+          Access Token{status?.configured && hasCredentials && ' (leave blank to keep existing)'}
         </label>
         <input
           id="git-int-token"
@@ -144,12 +156,21 @@ export default function GitIntegrationSection() {
           className="form-control"
           value={token}
           onChange={e => setToken(e.target.value)}
-          placeholder={status?.configured ? '••••••••' : 'paste token here'}
-          disabled={busy}
+          placeholder={
+            !hasCredentials
+              ? 'not used for custom service'
+              : status?.configured
+              ? '••••••••'
+              : 'paste token here'
+          }
+          disabled={busy || !hasCredentials}
+          style={!hasCredentials ? disabledStyle : undefined}
         />
-        <p className="help-block" style={{ fontSize: 12 }}>
-          GitHub / GitLab / Gitea: personal access token &nbsp;·&nbsp; Bitbucket: app password
-        </p>
+        {hasCredentials && (
+          <p className="help-block" style={{ fontSize: 12 }}>
+            GitHub / GitLab / Gitea: personal access token &nbsp;·&nbsp; Bitbucket: app password
+          </p>
+        )}
       </div>
 
       <div className="form-group">
@@ -160,15 +181,40 @@ export default function GitIntegrationSection() {
           className="form-control"
           value={apiUrl}
           onChange={e => setApiUrl(e.target.value)}
-          placeholder="https://your-instance.example.com"
+          placeholder={
+            service === 'custom'
+              ? 'https://gitea.example.com/api/v1/user/repos'
+              : 'https://your-instance.example.com'
+          }
           readOnly={apiUrlLocked}
           disabled={busy}
-          style={apiUrlLocked ? { background: '#f5f5f5', cursor: 'not-allowed' } : undefined}
+          style={apiUrlLocked ? disabledStyle : undefined}
         />
         <p className="help-block" style={{ fontSize: 12 }}>
-          {apiUrlLocked
+          {service === 'custom'
+            ? 'Full endpoint URL. Auth credentials can be embedded (e.g. https://user:token@host/…).'
+            : apiUrlLocked
             ? 'Set automatically for this service.'
-            : 'Enter the base URL of your self-hosted instance.'}
+            : 'Base URL of your self-hosted instance (e.g. https://gitea.irvingrats.us).'}
+        </p>
+      </div>
+
+      <div className="form-group">
+        <label htmlFor="git-int-org">Organization <span className="text-muted" style={{ fontWeight: 400 }}>(optional)</span></label>
+        <input
+          id="git-int-org"
+          type="text"
+          className="form-control"
+          value={org}
+          onChange={e => setOrg(e.target.value)}
+          placeholder="my-org"
+          disabled={busy || service === 'custom'}
+          style={service === 'custom' ? disabledStyle : undefined}
+        />
+        <p className="help-block" style={{ fontSize: 12 }}>
+          {service === 'custom'
+            ? 'Encode the target org in the API URL above.'
+            : 'New repos will be created under this organization instead of your personal account.'}
         </p>
       </div>
 

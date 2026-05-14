@@ -140,8 +140,8 @@ export async function getIntegration(req, res) {
   try {
     const integration = await GitIntegrationManager.getIntegration(userId.toString())
     if (!integration) return res.json({ configured: false })
-    const { service, username, apiUrl } = integration
-    res.json({ configured: true, service, username, apiUrl, hasToken: true })
+    const { service, username, apiUrl, org } = integration
+    res.json({ configured: true, service, username, apiUrl, org, hasToken: true })
   } catch (err) {
     res.status(500).json({ error: err.message })
   }
@@ -150,20 +150,25 @@ export async function getIntegration(req, res) {
 export async function saveIntegration(req, res) {
   const userId = SessionManager.getLoggedInUserId(req.session)
   if (!userId) return res.status(401).json({ error: 'Not logged in' })
-  const { service, username, token, apiUrl } = req.body
-  if (!service || !username || !token) {
-    return res.status(400).json({ error: 'service, username, and token are required' })
-  }
+  const { service, username, token, apiUrl, org } = req.body
   const knownServices = { ...GitIntegrationManager.SERVICE_DEFAULTS, custom: true }
-  if (!knownServices[service]) {
-    return res.status(400).json({ error: `Unknown service: ${service}` })
+  if (!service || !knownServices[service]) {
+    return res.status(400).json({ error: 'Unknown or missing service' })
+  }
+  if (service === 'custom') {
+    if (!apiUrl) return res.status(400).json({ error: 'API URL is required for custom service' })
+  } else {
+    if (!username || !token) {
+      return res.status(400).json({ error: 'service, username, and token are required' })
+    }
   }
   try {
     await GitIntegrationManager.saveIntegration(userId.toString(), {
       service,
       username,
       token,
-      apiUrl: apiUrl || GitIntegrationManager.SERVICE_DEFAULTS[service].apiUrl,
+      apiUrl: apiUrl || GitIntegrationManager.SERVICE_DEFAULTS[service]?.apiUrl || '',
+      org: org || '',
     })
     res.json({ ok: true })
   } catch (err) {

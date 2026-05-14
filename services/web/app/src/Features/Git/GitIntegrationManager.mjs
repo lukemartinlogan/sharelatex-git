@@ -30,12 +30,18 @@ export async function getIntegration(userId) {
   }
 }
 
-export async function saveIntegration(userId, { service, username, token, apiUrl }) {
+export async function saveIntegration(userId, { service, username, token, apiUrl, org }) {
   const dir = integrationsDir()
   await fs.mkdir(dir, { recursive: true, mode: 0o700 })
   await fs.chmod(dir, 0o700)
   const p = integrationPath(userId)
-  await fs.writeFile(p, JSON.stringify({ service, username, token, apiUrl }), { mode: 0o600 })
+  const data = { service, apiUrl }
+  if (service !== 'custom') {
+    data.username = username
+    data.token = token
+  }
+  if (org) data.org = org
+  await fs.writeFile(p, JSON.stringify(data), { mode: 0o600 })
   await fs.chmod(p, 0o600)
 }
 
@@ -133,68 +139,78 @@ function throwRepoError(service, status, body) {
 // Returns { repoName, remoteUrl }
 export async function createRemoteRepo(integration, projectName) {
   const repoName = toSnakeCase(projectName)
-  const { service, username, token, apiUrl } = integration
+  const { service, username, token, apiUrl, org } = integration
 
   if (service === 'github') {
     const base = (apiUrl || 'https://api.github.com').replace(/\/$/, '')
+    const endpoint = org ? `${base}/orgs/${org}/repos` : `${base}/user/repos`
     const res = await apiRequest(
-      `${base}/user/repos`,
+      endpoint,
       { method: 'POST', headers: { Authorization: `token ${token}` } },
       { name: repoName, private: true, auto_init: false }
     )
     if (res.status !== 201) throwRepoError(service, res.status, res.body)
-    return { repoName, remoteUrl: `git@github.com:${username}/${repoName}.git` }
+    const owner = org || username
+    return { repoName, remoteUrl: `git@github.com:${owner}/${repoName}.git` }
   }
 
   if (service === 'gitlab') {
     const base = (apiUrl || 'https://gitlab.com').replace(/\/$/, '')
+    const body = { name: repoName, visibility: 'private' }
+    if (org) body.namespace_path = org
     const res = await apiRequest(
       `${base}/api/v4/projects`,
       { method: 'POST', headers: { 'PRIVATE-TOKEN': token } },
-      { name: repoName, visibility: 'private' }
+      body
     )
     if (res.status !== 201) throwRepoError(service, res.status, res.body)
     const host = new URL(base).hostname
-    return { repoName, remoteUrl: `git@${host}:${username}/${repoName}.git` }
+    const owner = org || username
+    return { repoName, remoteUrl: `git@${host}:${owner}/${repoName}.git` }
   }
 
   if (service === 'gitea') {
     if (!apiUrl) throw new Error('Gitea requires an API URL')
     const base = apiUrl.replace(/\/$/, '')
+    const endpoint = org
+      ? `${base}/api/v1/orgs/${org}/repos`
+      : `${base}/api/v1/user/repos`
     const res = await apiRequest(
-      `${base}/api/v1/user/repos`,
+      endpoint,
       { method: 'POST', headers: { Authorization: `token ${token}` } },
       { name: repoName, private: true, auto_init: false }
     )
     if (res.status !== 201) throwRepoError(service, res.status, res.body)
     const host = new URL(base).hostname
-    return { repoName, remoteUrl: `git@${host}:${username}/${repoName}.git` }
+    const owner = org || username
+    return { repoName, remoteUrl: `git@${host}:${owner}/${repoName}.git` }
   }
 
-  // Custom / Gitea-compatible self-hosted (uses the same API shape as Gitea)
+  // Custom: user supplies the full API endpoint URL; we POST to it directly.
+  // Auth should be embedded in the URL or handled server-side.
   if (service === 'custom') {
     if (!apiUrl) throw new Error('Custom service requires an API URL')
-    const base = apiUrl.replace(/\/$/, '')
     const res = await apiRequest(
-      `${base}/api/v1/user/repos`,
-      { method: 'POST', headers: { Authorization: `token ${token}` } },
+      apiUrl,
+      { method: 'POST' },
       { name: repoName, private: true, auto_init: false }
     )
     if (res.status !== 201) throwRepoError(service, res.status, res.body)
-    const host = new URL(base).hostname
-    return { repoName, remoteUrl: `git@${host}:${username}/${repoName}.git` }
+    const cloneBase = res.body?.ssh_url || res.body?.clone_url || res.body?.html_url
+    return { repoName, remoteUrl: cloneBase || apiUrl }
   }
 
   if (service === 'bitbucket') {
     const base = (apiUrl || 'https://api.bitbucket.org').replace(/\/$/, '')
+    const owner = org || username
     const creds = Buffer.from(`${username}:${token}`).toString('base64')
     const res = await apiRequest(
-      `${base}/2.0/repositories/${username}/${repoName}`,
+      `${base}/2.0/repositories/${owner}/${repoName}`,
       { method: 'POST', headers: { Authorization: `Basic ${creds}` } },
       { scm: 'git', is_private: true }
     )
     if (res.status !== 200 && res.status !== 201) throwRepoError(service, res.status, res.body)
-    return { repoName, remoteUrl: `git@bitbucket.org:${username}/${repoName}.git` }
+    return { repoName, remoteUrl: `git@bitbucket.org:${owner}/${repoName}.git` }
   }
 
   throw new Error(`Unsupported service: ${service}`)
