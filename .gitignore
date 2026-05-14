@@ -4,3 +4,7 @@
 # user defined files
 .env
 docker-compose.override.yml
+
+# local build artifacts
+node_modules/
+services/web/public-built/

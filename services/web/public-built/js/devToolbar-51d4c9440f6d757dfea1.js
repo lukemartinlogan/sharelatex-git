@@ -1,1 +1,0 @@
-!function(e,o){if("object"==typeof exports&&"object"==typeof module)module.exports=o();else if("function"==typeof define&&define.amd)define([],o);else{var f=o();for(var t in f)("object"==typeof exports?exports:e)[t]=f[t]}}(self,()=>(self.webpackChunk_overleaf_web=self.webpackChunk_overleaf_web||[]).push([[7037],{17308(){0}},e=>{var o;return o=17308,e(e.s=o)}]));
