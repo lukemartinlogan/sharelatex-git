@@ -89,7 +89,20 @@ function apiRequest(url, { method = 'GET', headers = {} } = {}, body) {
 }
 
 function throwRepoError(service, status, body) {
-  // Detect "repo already exists" across services and surface a clear message
+  // Auth failures
+  if (status === 401) {
+    throw new Error(`Authentication failed — check your ${service} access token`)
+  }
+  if (status === 403) {
+    throw new Error(`Access denied — your ${service} token may lack required permissions`)
+  }
+  // GitHub: 404 on /user/repos means the token lacks 'repo' scope
+  if (service === 'github' && status === 404) {
+    throw new Error(
+      "GitHub returned 404 — ensure your personal access token has the 'repo' scope (classic token) or 'Contents: Read and Write' (fine-grained token)"
+    )
+  }
+  // Repo already exists
   if (service === 'github' && status === 422) {
     const errors = body?.errors
     if (errors?.some(e => e.message?.toLowerCase().includes('already exists'))) {

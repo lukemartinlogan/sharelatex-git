@@ -52,10 +52,10 @@ patch(`${IDE}/contexts/rail-context.tsx`, content => {
 // rail.tsx: add GitPanel import and tab entry
 patch(`${IDE}/components/rail/rail.tsx`, content => {
   // Skip only if already fully and correctly patched
-  if (content.includes('GitPanel') && content.includes("icon: 'source'")) return content
+  if (content.includes('GitPanel') && content.includes("icon: 'call_split'")) return content
   // If previously patched with a different icon, fix just the icon line
   if (content.includes('GitPanel')) {
-    return content.replace(/icon: '[^']+',(\s*title: 'Git')/, "icon: 'source',$1")
+    return content.replace(/icon: '[^']+',(\s*title: 'Git')/, "icon: 'call_split',$1")
   }
   // Fresh stock file — full patch
   content = content.replace(
@@ -64,7 +64,7 @@ patch(`${IDE}/components/rail/rail.tsx`, content => {
   )
   content = content.replace(
     '      ...moduleRailEntries,',
-    "      {\n        key: 'git',\n        icon: 'source',\n        title: 'Git',\n        component: <GitPanel />,\n      },\n      ...moduleRailEntries,"
+    "      {\n        key: 'git',\n        icon: 'call_split',\n        title: 'Git',\n        component: <GitPanel />,\n      },\n      ...moduleRailEntries,"
   )
   return content
 })
