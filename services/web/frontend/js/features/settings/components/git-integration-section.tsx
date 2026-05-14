@@ -2,10 +2,11 @@ import { useCallback, useEffect, useState } from 'react'
 import { getJSON, postJSON, deleteJSON } from '@/infrastructure/fetch-json'
 
 const SERVICES = [
-  { value: 'github',    label: 'GitHub',    defaultApiUrl: 'https://api.github.com' },
-  { value: 'gitlab',   label: 'GitLab',    defaultApiUrl: 'https://gitlab.com' },
-  { value: 'gitea',    label: 'Gitea',     defaultApiUrl: '' },
-  { value: 'bitbucket', label: 'Bitbucket', defaultApiUrl: 'https://api.bitbucket.org' },
+  { value: 'github',    label: 'GitHub',    defaultApiUrl: 'https://api.github.com',      locked: true  },
+  { value: 'gitlab',   label: 'GitLab',    defaultApiUrl: 'https://gitlab.com',           locked: true  },
+  { value: 'bitbucket', label: 'Bitbucket', defaultApiUrl: 'https://api.bitbucket.org',  locked: true  },
+  { value: 'gitea',    label: 'Gitea',     defaultApiUrl: 'https://api.github.com',       locked: false },
+  { value: 'custom',   label: 'Custom',    defaultApiUrl: '',                             locked: false },
 ]
 
 type IntegrationStatus = {
@@ -35,7 +36,6 @@ export default function GitIntegrationSection() {
           setService(s.service || 'github')
           setUsername(s.username || '')
           setApiUrl(s.apiUrl || '')
-          // token intentionally not set — user must re-enter to change it
         }
       })
       .catch(() => setStatus({ configured: false }))
@@ -46,7 +46,7 @@ export default function GitIntegrationSection() {
   const handleServiceChange = useCallback((svc: string) => {
     setService(svc)
     const def = SERVICES.find(s => s.value === svc)
-    if (def?.defaultApiUrl) setApiUrl(def.defaultApiUrl)
+    if (def) setApiUrl(def.defaultApiUrl)
   }, [])
 
   const handleSave = useCallback(async () => {
@@ -61,7 +61,7 @@ export default function GitIntegrationSection() {
         body: { service, username, token, apiUrl },
       })
       setSaveState('saved')
-      setToken('') // clear token field after save
+      setToken('')
       fetchStatus()
       setTimeout(() => setSaveState('idle'), 2500)
     } catch (err: any) {
@@ -86,6 +86,9 @@ export default function GitIntegrationSection() {
   }, [fetchStatus])
 
   const busy = saveState === 'saving' || saveState === 'deleting'
+  const currentService = SERVICES.find(s => s.value === service)
+  const apiUrlLocked = currentService?.locked ?? true
+  const serviceLabel = SERVICES.find(s => s.value === status?.service)?.label ?? status?.service
 
   return (
     <div>
@@ -98,8 +101,8 @@ export default function GitIntegrationSection() {
 
       {status?.configured && (
         <div className="alert alert-info" style={{ padding: '6px 10px', marginBottom: 12, fontSize: 13 }}>
-          Currently connected: <strong>{SERVICES.find(s => s.value === status.service)?.label ?? status.service}</strong>
-          {' '}as <strong>{status.username}</strong>
+          Currently connected: <strong>{serviceLabel}</strong>{' '}
+          as <strong>{status.username}</strong>
         </div>
       )}
 
@@ -145,9 +148,7 @@ export default function GitIntegrationSection() {
           disabled={busy}
         />
         <p className="help-block" style={{ fontSize: 12 }}>
-          GitHub/Gitea: personal access token &nbsp;·&nbsp;
-          GitLab: personal access token &nbsp;·&nbsp;
-          Bitbucket: app password
+          GitHub / GitLab / Gitea: personal access token &nbsp;·&nbsp; Bitbucket: app password
         </p>
       </div>
 
@@ -159,11 +160,15 @@ export default function GitIntegrationSection() {
           className="form-control"
           value={apiUrl}
           onChange={e => setApiUrl(e.target.value)}
-          placeholder="https://api.github.com"
+          placeholder="https://your-instance.example.com"
+          readOnly={apiUrlLocked}
           disabled={busy}
+          style={apiUrlLocked ? { background: '#f5f5f5', cursor: 'not-allowed' } : undefined}
         />
         <p className="help-block" style={{ fontSize: 12 }}>
-          Change this only for self-hosted instances (Gitea, GitLab CE, etc.)
+          {apiUrlLocked
+            ? 'Set automatically for this service.'
+            : 'Enter the base URL of your self-hosted instance.'}
         </p>
       </div>
 

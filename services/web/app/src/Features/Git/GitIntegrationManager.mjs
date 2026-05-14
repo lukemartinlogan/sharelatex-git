@@ -139,6 +139,22 @@ export async function createRemoteRepo(integration, projectName) {
     return { repoName, remoteUrl: `git@${host}:${username}/${repoName}.git` }
   }
 
+  // Custom / Gitea-compatible self-hosted (uses the same API shape as Gitea)
+  if (service === 'custom') {
+    if (!apiUrl) throw new Error('Custom service requires an API URL')
+    const base = apiUrl.replace(/\/$/, '')
+    const res = await apiRequest(
+      `${base}/api/v1/user/repos`,
+      { method: 'POST', headers: { Authorization: `token ${token}` } },
+      { name: repoName, private: true, auto_init: false }
+    )
+    if (res.status !== 201) {
+      throw new Error(res.body?.message || `HTTP ${res.status}`)
+    }
+    const host = new URL(base).hostname
+    return { repoName, remoteUrl: `git@${host}:${username}/${repoName}.git` }
+  }
+
   if (service === 'bitbucket') {
     const base = (apiUrl || 'https://api.bitbucket.org').replace(/\/$/, '')
     const creds = Buffer.from(`${username}:${token}`).toString('base64')

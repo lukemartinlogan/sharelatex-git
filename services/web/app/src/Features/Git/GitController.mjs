@@ -154,7 +154,8 @@ export async function saveIntegration(req, res) {
   if (!service || !username || !token) {
     return res.status(400).json({ error: 'service, username, and token are required' })
   }
-  if (!GitIntegrationManager.SERVICE_DEFAULTS[service]) {
+  const knownServices = { ...GitIntegrationManager.SERVICE_DEFAULTS, custom: true }
+  if (!knownServices[service]) {
     return res.status(400).json({ error: `Unknown service: ${service}` })
   }
   try {
