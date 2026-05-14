@@ -65,6 +65,88 @@ in which to run the Overleaf services. Baseimage uses the `runit` service
 manager to manage services, and we add our init-scripts from the `server-ce/runit`
 folder.
 
+## Git Integration (Fork)
+
+This fork adds a Git integration layer on top of Overleaf Community Edition, allowing you to commit, push, and pull your Overleaf project to/from any Git remote (e.g. GitHub).
+
+### How it works
+
+Each Overleaf project gets its own local Git repository stored on the host at `GIT_REPOS_PATH/<project-id>/`. When you click a Git button, the backend:
+
+1. **Commit** — Exports all project docs and binary files from Overleaf into the local repo, stages everything with `git add -A`, and creates a commit.
+2. **Push** — Runs `git push origin HEAD` using your stored SSH key, streaming output back to the UI.
+3. **Pull & Merge** — Fetches from origin, merges using `--allow-unrelated-histories`, then syncs all changed files back into Overleaf in real time via socket events (open editors refresh without a page reload).
+
+### UI
+
+Three buttons appear in the toolbar (top bar):
+
+- **Commit** (save icon) — Snapshot the current project state into the local Git repo.
+- **Push** (upload icon) — Push the local commits to the configured remote.
+- **Pull** (download icon) — Fetch and merge from remote, then sync changes into Overleaf.
+
+A **Git** tab in the left rail lets you configure the remote URL (e.g. `git@github.com:you/repo.git`).
+
+### Setup
+
+#### 1. Configure host directory
+
+Set `GIT_REPOS_PATH` in your `.env` to a directory writable by the container (`chmod 777` it, since Node runs as `www-data` uid 33):
+
+```bash
+echo "GIT_REPOS_PATH=/path/to/git-repos" >> .env
+chmod 777 /path/to/git-repos
+```
+
+#### 2. Upload your SSH private key
+
+In Overleaf, go to **Account Settings → Git SSH Key** and paste your private key (the one whose public key is registered with GitHub/GitLab). The key is stored at `GIT_REPOS_PATH/.ssh/<user-id>/id_rsa` with mode 600.
+
+To verify the key authenticates correctly:
+
+```bash
+docker exec sharelatex bash -c \
+  'ssh -i /git-repos/.ssh/<user-id>/id_rsa \
+       -o StrictHostKeyChecking=no \
+       -o UserKnownHostsFile=/dev/null \
+       git@github.com 2>&1'
+# Should print: Hi <your-username>! You've successfully authenticated...
+```
+
+#### 3. Set the remote URL
+
+Open your project, click the **Git** tab in the left rail, and enter the remote URL (e.g. `git@github.com:you/repo.git`). Click **Save**.
+
+#### 4. Commit, push, pull
+
+Use the three toolbar buttons. A floating output panel shows the result of each operation and auto-dismisses after 15 seconds.
+
+### Building the custom image
+
+The Docker image is built from `home-server/overleaf-/docker-compose.yml`. The frontend must be compiled locally first:
+
+```bash
+cd services/web
+node scripts/patch-git-frontend.mjs .
+npm run webpack:production
+cp -r public/ public-built/
+```
+
+Then build and start:
+
+```bash
+cd home-server/overleaf-
+docker compose build --no-cache sharelatex
+docker compose up -d
+```
+
+### Architecture notes
+
+- **Backend**: `services/web/app/src/Features/Git/` — `GitManager.mjs` (core operations), `GitRouter.mjs` (HTTP routes), `GitSshManager.mjs` (SSH key storage), `GitController.mjs` (request handlers).
+- **Frontend**: `services/web/frontend/js/features/git/` — toolbar buttons, rail panel, settings section. Patched into the stock image's `ide-redesign` tree by `scripts/patch-git-frontend.mjs` at build time.
+- Real-time updates after pull use `EditorController.upsertDocWithPath` / `upsertFileWithPath`, which emit socket events so open editors refresh without a page reload.
+- Binary files (images, PDFs) are detected by scanning the first 8 KB for null bytes.
+
 ## Contributing
 
 Please see the [CONTRIBUTING](CONTRIBUTING.md) file for information on contributing to the development of Overleaf.

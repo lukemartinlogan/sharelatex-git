@@ -58,7 +58,7 @@ patch(`${IDE}/components/rail/rail.tsx`, content => {
   )
   content = content.replace(
     '      ...moduleRailEntries,',
-    "      {\n        key: 'git',\n        icon: 'hub',\n        title: 'Git',\n        component: <GitPanel />,\n      },\n      ...moduleRailEntries,"
+    "      {\n        key: 'git',\n        icon: 'merge',\n        title: 'Git',\n        component: <GitPanel />,\n      },\n      ...moduleRailEntries,"
   )
   return content
 })
