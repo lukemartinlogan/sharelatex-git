@@ -363,6 +363,12 @@ export async function commitAndPush(projectId, message) {
 }
 
 export async function pullFromRemote(projectId) {
+  // Auto-commit current project state before pulling so no work is lost on merge
+  const autoCommitResult = await commitOnly(
+    projectId,
+    `Auto-commit before pull ${new Date().toISOString()}`
+  )
+
   const dir = await findProjectDir(projectId)
   if (!dir) throw new Error('Project not configured for git. Set a remote first.')
 
@@ -408,5 +414,5 @@ export async function pullFromRemote(projectId) {
   await syncDirToProject(projectId, dir)
 
   const output = [mergeOut, fetchStderr].filter(Boolean).join('\n')
-  return { ok: true, upToDate, remoteUrl, output }
+  return { ok: true, upToDate, remoteUrl, output, autoCommit: autoCommitResult }
 }

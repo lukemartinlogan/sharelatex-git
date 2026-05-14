@@ -26,6 +26,7 @@ type PullResult = {
   upToDate?: boolean
   remoteUrl?: string
   output?: string
+  autoCommit?: { committed: boolean; message?: string }
 }
 
 type LogEntry =
@@ -202,6 +203,11 @@ function PushSuccess({ result }: { result: PushResult }) {
 function PullSuccess({ result }: { result: PullResult }) {
   return (
     <>
+      {result.autoCommit?.committed && (
+        <div style={{ color: '#89b4fa', fontSize: 12, marginBottom: 6 }}>
+          ↑ Auto-committed local changes before pull
+        </div>
+      )}
       <div style={{ color: '#a6e3a1', marginBottom: 6 }}>
         {result.upToDate ? 'ℹ Already up to date' : '✓ Pulled and merged'}
       </div>
