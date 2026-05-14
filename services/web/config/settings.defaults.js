@@ -760,6 +760,10 @@ module.exports = {
   max_json_request_size:
     parseInt(process.env.MAX_JSON_REQUEST_SIZE) || 12 * 1024 * 1024, // 12 MB
 
+  // Git repos path — directory where project git repos are stored on disk.
+  // Set GIT_REPOS_PATH env var to the same path mounted into this container.
+  gitReposPath: process.env.GIT_REPOS_PATH || null,
+
   // Internal configs
   // ----------------
   path: {

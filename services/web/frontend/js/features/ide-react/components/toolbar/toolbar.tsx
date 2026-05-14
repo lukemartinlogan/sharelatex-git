@@ -5,6 +5,7 @@ import { OnlineUsers } from './online-users'
 import ShareProjectButton from './share-project-button'
 import ChangeLayoutButton from './change-layout-button'
 import ShowHistoryButton from './show-history-button'
+import GitButtons from '@/features/git/components/git-buttons'
 import { useLayoutContext } from '@/shared/context/layout-context'
 import BackToEditorButton from '@/features/editor-navigation-toolbar/components/back-to-editor-button'
 import { useCallback } from 'react'
@@ -54,6 +55,7 @@ export const Toolbar = () => {
       <ToolbarProjectTitle />
       <div className="ide-redesign-toolbar-actions">
         <OnlineUsers />
+        <GitButtons />
         {!isRestrictedTokenMember && <ShowHistoryButton />}
         <ChangeLayoutButton />
         {shouldDisplaySubmitButton && cobranding && (

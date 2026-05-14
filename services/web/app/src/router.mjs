@@ -31,6 +31,7 @@ import ProjectDownloadsController from './Features/Downloads/ProjectDownloadsCon
 import FileStoreController from './Features/FileStore/FileStoreController.mjs'
 import DocumentUpdaterController from './Features/DocumentUpdater/DocumentUpdaterController.mjs'
 import HistoryRouter from './Features/History/HistoryRouter.mjs'
+import GitRouter from './Features/Git/GitRouter.mjs'
 import ExportsController from './Features/Exports/ExportsController.mjs'
 import PasswordResetRouter from './Features/PasswordReset/PasswordResetRouter.mjs'
 import StaticPagesRouter from './Features/StaticPages/StaticPagesRouter.mjs'
@@ -296,6 +297,7 @@ async function initialize(webRouter, privateApiRouter, publicApiRouter) {
   UserMembershipRouter.apply(webRouter)
   TokenAccessRouter.apply(webRouter)
   HistoryRouter.apply(webRouter, privateApiRouter)
+  GitRouter.apply(webRouter)
 
   await Modules.applyRouter(webRouter, privateApiRouter, publicApiRouter)
 

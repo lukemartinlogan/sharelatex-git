@@ -45,7 +45,7 @@ export const getLegacyWriteAndCiteMigration = (
   for (const provider of providers) {
     const currentProviderSettings = userSettings[provider]
 
-    if (currentProviderSettings.migrated) {
+    if (!currentProviderSettings || currentProviderSettings.migrated) {
       continue
     }
 
