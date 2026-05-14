@@ -96,10 +96,14 @@ function throwRepoError(service, status, body) {
   if (status === 403) {
     throw new Error(`Access denied — your ${service} token may lack required permissions`)
   }
-  // GitHub: 404 on /user/repos means the token lacks 'repo' scope
-  if (service === 'github' && status === 404) {
+  if (status === 404) {
+    if (service === 'github') {
+      throw new Error(
+        "GitHub returned 404 — ensure your personal access token has the 'repo' scope (classic token) or 'Contents: Read and Write' (fine-grained token)"
+      )
+    }
     throw new Error(
-      "GitHub returned 404 — ensure your personal access token has the 'repo' scope (classic token) or 'Contents: Read and Write' (fine-grained token)"
+      `API endpoint not found (HTTP 404) — check that the API URL is correct for service '${service}'`
     )
   }
   // Repo already exists
