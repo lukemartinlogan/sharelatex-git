@@ -9,13 +9,33 @@ COPY services/web/app/src/Features/Git/ /overleaf/services/web/app/src/Features/
 # Copy pre-built frontend bundle (built by CI via .github/scripts/build-frontend.sh)
 COPY services/web/public-built/ /overleaf/services/web/public/
 
-# Patch stock router.mjs to add Git routes
-RUN sed -i \
-  "s|import HistoryRouter from './Features/History/HistoryRouter.mjs'|import GitRouter from './Features/Git/GitRouter.mjs'\nimport HistoryRouter from './Features/History/HistoryRouter.mjs'|" \
-  /overleaf/services/web/app/src/router.mjs && \
-  sed -i \
-  "s|HistoryRouter.apply(webRouter, privateApiRouter)|HistoryRouter.apply(webRouter, privateApiRouter)\n  GitRouter.apply(webRouter)|" \
-  /overleaf/services/web/app/src/router.mjs
+# Patch stock router.mjs: add Git imports, routes, and pre-create hook
+RUN node -e "
+const fs = require('fs')
+const f = '/overleaf/services/web/app/src/router.mjs'
+let c = fs.readFileSync(f, 'utf8')
+
+// Add GitRouter + GitController imports before HistoryRouter
+c = c.replace(
+  \"import HistoryRouter from './Features/History/HistoryRouter.mjs'\",
+  \"import GitRouter from './Features/Git/GitRouter.mjs'\\nimport * as GitController from './Features/Git/GitController.mjs'\\nimport HistoryRouter from './Features/History/HistoryRouter.mjs'\"
+)
+
+// Register GitRouter after HistoryRouter
+c = c.replace(
+  'HistoryRouter.apply(webRouter, privateApiRouter)',
+  'HistoryRouter.apply(webRouter, privateApiRouter)\n  GitRouter.apply(webRouter)'
+)
+
+// Inject preCreateProject middleware into the /project/new handler chain
+c = c.replace(
+  'RateLimiterMiddleware.rateLimit(rateLimiters.createProject),\n    ProjectController.newProject',
+  'RateLimiterMiddleware.rateLimit(rateLimiters.createProject),\n    GitController.preCreateProject,\n    ProjectController.newProject'
+)
+
+fs.writeFileSync(f, c)
+console.log('Patched router.mjs')
+"
 
 # Patch stock settings.defaults.js to add gitReposPath
 RUN sed -i \

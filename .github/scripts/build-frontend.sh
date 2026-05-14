@@ -39,6 +39,8 @@ cp "$OVERLEAF/frontend/js/shared/utils/write-and-cite-settings-migration.ts" \
 cp -r "$OVERLEAF/frontend/js/features/git/" "$BUILD/frontend/js/features/git/"
 cp "$OVERLEAF/frontend/js/features/settings/components/git-ssh-section.tsx" \
   "$BUILD/frontend/js/features/settings/components/git-ssh-section.tsx"
+cp "$OVERLEAF/frontend/js/features/settings/components/git-integration-section.tsx" \
+  "$BUILD/frontend/js/features/settings/components/git-integration-section.tsx"
 
 echo "=== Running patch script ==="
 node "$SCRIPTS/patch-git-frontend.mjs" "$BUILD"

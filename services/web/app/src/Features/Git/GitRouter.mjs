@@ -4,6 +4,7 @@ import AuthenticationController from '../Authentication/AuthenticationController
 
 export default {
   apply(webRouter) {
+    // ── Project git operations ──────────────────────────────────────────────
     webRouter.get(
       '/project/:Project_id/git/status',
       AuthorizationMiddleware.ensureUserCanWriteProjectContent,
@@ -34,8 +35,13 @@ export default {
       AuthorizationMiddleware.ensureUserCanWriteProjectContent,
       GitController.pullFromRemote
     )
+    webRouter.post(
+      '/project/:Project_id/git/migrate',
+      AuthorizationMiddleware.ensureUserCanWriteProjectContent,
+      GitController.migrateProject
+    )
 
-    // User-level SSH key management
+    // ── SSH key management ─────────────────────────────────────────────────
     webRouter.get(
       '/user/git/ssh-key',
       AuthenticationController.requireLogin(),
@@ -50,6 +56,23 @@ export default {
       '/user/git/ssh-key',
       AuthenticationController.requireLogin(),
       GitController.deleteSshKey
+    )
+
+    // ── Git service integration settings ───────────────────────────────────
+    webRouter.get(
+      '/user/git/integration',
+      AuthenticationController.requireLogin(),
+      GitController.getIntegration
+    )
+    webRouter.post(
+      '/user/git/integration',
+      AuthenticationController.requireLogin(),
+      GitController.saveIntegration
+    )
+    webRouter.delete(
+      '/user/git/integration',
+      AuthenticationController.requireLogin(),
+      GitController.deleteIntegration
     )
   },
 }

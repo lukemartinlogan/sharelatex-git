@@ -1,0 +1,1 @@
+"use strict";(self.webpackChunk_overleaf_web=self.webpackChunk_overleaf_web||[]).push([[8980],{8980(e,a,t){t.r(a),t.d(a,{default:()=>r});t(96540);var l=t(74848);const s=[],r=()=>(0,l.jsx)("div",{className:"ide-react-symbol-palette",children:s.map(e=>{let{import:{default:a},path:t}=e;return(0,l.jsx)(a,{},t)})})}}]);

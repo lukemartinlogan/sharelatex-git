@@ -5,6 +5,7 @@ import { createWriteStream } from 'node:fs'
 import path from 'node:path'
 import Settings from '@overleaf/settings'
 import * as GitSshManager from './GitSshManager.mjs'
+import * as GitIntegrationManager from './GitIntegrationManager.mjs'
 
 // Lazy imports to avoid circular dependency issues at module init time
 async function getProjectEntityHandler() {
@@ -360,6 +361,24 @@ export async function commitAndPush(projectId, message) {
   }
 
   return { committed: true, pushed, pushError, commitResult, pushResult }
+}
+
+// Link an existing project to the user's current git service integration by
+// creating a remote repo (named from the project name) and configuring it.
+export async function migrateProjectToIntegration(projectId, userId) {
+  const integration = await GitIntegrationManager.getIntegration(userId)
+  if (!integration) throw new Error('No git service integration configured')
+
+  const ProjectGetter = await getProjectGetter()
+  const project = await ProjectGetter.promises.getProject(projectId, { name: 1 })
+  if (!project) throw new Error('Project not found')
+
+  const remoteInfo = await GitIntegrationManager.createRemoteRepo(
+    integration,
+    project.name
+  )
+  await configureRemote(projectId, remoteInfo.remoteUrl)
+  return remoteInfo
 }
 
 export async function pullFromRemote(projectId) {
