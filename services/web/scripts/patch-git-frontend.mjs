@@ -65,14 +65,24 @@ patch(`${IDE}/components/rail/rail.tsx`, content => {
 
 // settings/root.tsx: add GitSshSection and GitIntegrationSection imports and usage
 patch(`${SETTINGS}/root.tsx`, content => {
-  if (content.includes('GitSshSection')) return content
+  if (content.includes('GitIntegrationSection')) return content
+  if (!content.includes('GitSshSection')) {
+    content = content.replace(
+      "import SecuritySection from '@/features/settings/components/security-section'",
+      "import SecuritySection from '@/features/settings/components/security-section'\nimport GitSshSection from '@/features/settings/components/git-ssh-section'"
+    )
+    content = content.replace(
+      '<SecuritySection />',
+      '<GitSshSection />\n          <SecuritySection />'
+    )
+  }
   content = content.replace(
     "import SecuritySection from '@/features/settings/components/security-section'",
-    "import SecuritySection from '@/features/settings/components/security-section'\nimport GitSshSection from '@/features/settings/components/git-ssh-section'\nimport GitIntegrationSection from '@/features/settings/components/git-integration-section'"
+    "import SecuritySection from '@/features/settings/components/security-section'\nimport GitIntegrationSection from '@/features/settings/components/git-integration-section'"
   )
   content = content.replace(
-    '<SecuritySection />',
-    '<GitIntegrationSection />\n          <GitSshSection />\n          <SecuritySection />'
+    '<GitSshSection />',
+    '<GitIntegrationSection />\n          <GitSshSection />'
   )
   return content
 })
