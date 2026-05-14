@@ -1,0 +1,28 @@
+FROM sharelatex/sharelatex:latest
+
+# Install git for GitManager
+RUN apt-get update && apt-get install -y git && rm -rf /var/lib/apt/lists/*
+
+# Copy Git backend feature
+COPY services/web/app/src/Features/Git/ /overleaf/services/web/app/src/Features/Git/
+
+# Copy pre-built frontend bundle (built by CI via .github/scripts/build-frontend.sh)
+COPY services/web/public-built/ /overleaf/services/web/public/
+
+# Patch stock router.mjs to add Git routes
+RUN sed -i \
+  "s|import HistoryRouter from './Features/History/HistoryRouter.mjs'|import GitRouter from './Features/Git/GitRouter.mjs'\nimport HistoryRouter from './Features/History/HistoryRouter.mjs'|" \
+  /overleaf/services/web/app/src/router.mjs && \
+  sed -i \
+  "s|HistoryRouter.apply(webRouter, privateApiRouter)|HistoryRouter.apply(webRouter, privateApiRouter)\n  GitRouter.apply(webRouter)|" \
+  /overleaf/services/web/app/src/router.mjs
+
+# Patch stock settings.defaults.js to add gitReposPath
+RUN sed -i \
+  "s@// Internal configs@gitReposPath: process.env.GIT_REPOS_PATH || null,\n\n  // Internal configs@" \
+  /overleaf/services/web/config/settings.defaults.js
+
+# Patch /etc/overleaf/settings.js to add v1: {} so V1Api.mjs doesn't crash at load time
+RUN sed -i \
+  "s|v1_history:|v1: {},\n    v1_history:|" \
+  /etc/overleaf/settings.js
