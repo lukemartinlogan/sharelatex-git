@@ -151,7 +151,7 @@ export async function createRemoteRepo(integration, projectName) {
     )
     if (res.status !== 201) throwRepoError(service, res.status, res.body)
     const owner = org || username
-    return { repoName, remoteUrl: `git@github.com:${owner}/${repoName}.git` }
+    return { repoName, remoteUrl: `https://github.com/${owner}/${repoName}.git` }
   }
 
   if (service === 'gitlab') {
@@ -166,7 +166,7 @@ export async function createRemoteRepo(integration, projectName) {
     if (res.status !== 201) throwRepoError(service, res.status, res.body)
     const host = new URL(base).hostname
     const owner = org || username
-    return { repoName, remoteUrl: `git@${host}:${owner}/${repoName}.git` }
+    return { repoName, remoteUrl: `https://${host}/${owner}/${repoName}.git` }
   }
 
   if (service === 'gitea') {
@@ -183,7 +183,7 @@ export async function createRemoteRepo(integration, projectName) {
     if (res.status !== 201) throwRepoError(service, res.status, res.body)
     const host = new URL(base).hostname
     const owner = org || username
-    return { repoName, remoteUrl: `git@${host}:${owner}/${repoName}.git` }
+    return { repoName, remoteUrl: `https://${host}/${owner}/${repoName}.git` }
   }
 
   // Custom: user supplies the full API endpoint URL; we POST to it directly.

@@ -68,14 +68,47 @@ async function gitVerbose(dir, args, extraEnv = {}) {
   }
 }
 
-async function getSshEnvForProject(projectId) {
+async function getOwnerUserId(projectId) {
   const ProjectGetter = await getProjectGetter()
   const project = await ProjectGetter.promises.getProject(projectId, { owner_ref: 1 })
-  const userId = project?.owner_ref?.toString()
+  return project?.owner_ref?.toString() || null
+}
+
+async function getSshEnvForProject(projectId) {
+  const userId = await getOwnerUserId(projectId)
   if (userId && await GitSshManager.hasKey(userId)) {
     return GitSshManager.getSshEnv(userId)
   }
   return {}
+}
+
+// For HTTPS remotes, embed token credentials into the URL so git never
+// prompts interactively (there is no TTY in the Node.js child process).
+function buildAuthUrl(remoteUrl, integration) {
+  if (!remoteUrl || !remoteUrl.startsWith('http')) return remoteUrl
+  if (!integration?.token) return remoteUrl
+  try {
+    const u = new URL(remoteUrl)
+    u.username = encodeURIComponent(integration.username || 'oauth2')
+    u.password = encodeURIComponent(integration.token)
+    return u.toString()
+  } catch {
+    return remoteUrl
+  }
+}
+
+async function getRemoteEnvAndUrl(projectId, remoteUrl) {
+  const noPrompt = { GIT_TERMINAL_PROMPT: '0' }
+  if (remoteUrl && remoteUrl.startsWith('http')) {
+    const userId = await getOwnerUserId(projectId)
+    const integration = userId
+      ? await GitIntegrationManager.getIntegration(userId)
+      : null
+    return { env: noPrompt, url: buildAuthUrl(remoteUrl, integration) }
+  }
+  // SSH remote — use uploaded key if available
+  const sshEnv = await getSshEnvForProject(projectId)
+  return { env: { ...noPrompt, ...sshEnv }, url: remoteUrl }
 }
 
 async function findProjectDir(projectId) {
@@ -338,9 +371,9 @@ export async function pushToRemote(projectId) {
   }
   if (!remoteUrl) throw new Error('No remote configured for this project')
 
-  const sshEnv = await getSshEnvForProject(projectId)
-  // git push writes progress/results to stderr; capture both
-  const { stdout, stderr } = await gitVerbose(dir, ['push', 'origin', 'HEAD'], sshEnv)
+  const { env, url } = await getRemoteEnvAndUrl(projectId, remoteUrl)
+  // Push to explicit authenticated URL so credentials are never stored in git config
+  const { stdout, stderr } = await gitVerbose(dir, ['push', url, 'HEAD'], env)
   const output = [stdout, stderr].filter(Boolean).join('\n')
 
   return { pushed: true, remoteUrl, output }
@@ -399,8 +432,8 @@ export async function pullFromRemote(projectId) {
   }
   if (!remoteUrl) throw new Error('No remote configured for this project')
 
-  const sshEnv = await getSshEnvForProject(projectId)
-  const { stderr: fetchStderr } = await gitVerbose(dir, ['fetch', 'origin'], sshEnv)
+  const { env, url: authUrl } = await getRemoteEnvAndUrl(projectId, remoteUrl)
+  const { stderr: fetchStderr } = await gitVerbose(dir, ['fetch', authUrl], env)
 
   // git fetch marks FETCH_HEAD as "not-for-merge" when there is no tracking
   // relationship, causing `git merge FETCH_HEAD` to silently do nothing.
